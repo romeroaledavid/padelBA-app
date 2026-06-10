@@ -8,10 +8,7 @@ import '../auth/login_screen.dart';
 import '../perfil/perfil_screen.dart';
 import '../jugadores/jugadores_screen.dart';
 import '../ranking/ranking_screen.dart';
-import '../torneos/torneos_screen.dart';
-import '../fiscal/fiscal_login_screen.dart';
 
-// ===================== HOME =====================
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
   @override
@@ -44,23 +41,18 @@ class _HomeScreenState extends State<HomeScreen> {
     final obs = _perfil?['categoria_observada'] as int?;
     return (obs != null && obs != _categoria) ? obs : null;
   }
-  bool get _esFiscal => (_perfil?['rol'] as String?) == 'fiscal';
 
   @override
   Widget build(BuildContext context) {
     final screens = [
       _homeBody(),
-      const TorneosScreen(),
       PerfilScreen(perfil: _perfil, onSaved: _loadPerfil),
-      const FiscalLoginScreen(),
-      const SizedBox(), // logout at index 4
+      const SizedBox(), // logout
     ];
 
     const navItems = [
       BottomNavigationBarItem(icon: Icon(Icons.home_outlined), activeIcon: Icon(Icons.home), label: 'INICIO'),
-      BottomNavigationBarItem(icon: Icon(Icons.emoji_events_outlined), activeIcon: Icon(Icons.emoji_events), label: 'TORNEOS'),
       BottomNavigationBarItem(icon: Icon(Icons.person_outline), activeIcon: Icon(Icons.person), label: 'PERFIL'),
-      BottomNavigationBarItem(icon: Icon(Icons.shield_outlined), activeIcon: Icon(Icons.shield), label: 'FISCAL'),
       BottomNavigationBarItem(icon: Icon(Icons.logout), label: 'SALIR'),
     ];
 
@@ -70,14 +62,14 @@ class _HomeScreenState extends State<HomeScreen> {
           center: Alignment(0, 1), radius: 1.5, colors: [Color(0x4D1565E8), AppColors.navy],
         ))),
         CustomPaint(painter: DiagonalBgPainter(), child: Container()),
-        screens[_navIndex.clamp(0, 4)],
+        screens[_navIndex.clamp(0, 2)],
       ]),
       bottomNavigationBar: Container(
         decoration: const BoxDecoration(border: Border(top: BorderSide(color: AppColors.white10))),
         child: BottomNavigationBar(
-          currentIndex: _navIndex.clamp(0, 4),
+          currentIndex: _navIndex.clamp(0, 2),
           onTap: (i) async {
-            if (i == 4) {
+            if (i == 2) {
               await Supabase.instance.client.auth.signOut();
               if (mounted) Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const LoginScreen()));
             } else {
@@ -97,6 +89,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _homeBody() => SafeArea(child: Column(children: [
+    // Header
     Padding(
       padding: const EdgeInsets.fromLTRB(28, 24, 28, 24),
       child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -105,12 +98,19 @@ class _HomeScreenState extends State<HomeScreen> {
           Text(_firstName, style: GoogleFonts.bebasNeue(fontSize: 32, letterSpacing: 2, color: Colors.white)),
         ]),
         GestureDetector(
-          onTap: () => setState(() => _navIndex = 2),
-          child: ProfileAvatar(fotoUrl: _perfil?['foto_url'] as String?, initials: _initials, categoria: _categoria, categoriaObservada: _catObs, radius: 24),
+          onTap: () => setState(() => _navIndex = 1),
+          child: ProfileAvatar(
+            fotoUrl: _perfil?['foto_url'] as String?,
+            initials: _initials,
+            categoria: _categoria,
+            categoriaObservada: _catObs,
+            radius: 24,
+          ),
         ),
       ]),
     ),
-    // Tournament cards - horizontal scroll
+
+    // Torneos cards - horizontal scroll
     SizedBox(
       height: 148,
       child: ListView(
@@ -147,20 +147,28 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
     ),
+
     const SizedBox(height: 28),
-    Padding(padding: const EdgeInsets.symmetric(horizontal: 28),
+    Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28),
       child: Align(alignment: Alignment.centerLeft,
-        child: Text('MENU', style: GoogleFonts.barlowCondensed(fontSize: 12, letterSpacing: 4, color: AppColors.white30)))),
+        child: Text('MENU', style: GoogleFonts.barlowCondensed(fontSize: 12, letterSpacing: 4, color: AppColors.white30))),
+    ),
     const SizedBox(height: 14),
+
+    // Menu grid - 4 opciones para jugadores
     Expanded(child: Padding(
       padding: const EdgeInsets.symmetric(horizontal: 20),
       child: GridView.count(
         crossAxisCount: 2, crossAxisSpacing: 12, mainAxisSpacing: 12,
         physics: const NeverScrollableScrollPhysics(),
         children: [
-          _menuCard('Torneos', 'Ver y crear', Icons.emoji_events_outlined, AppColors.blue, () => setState(() => _navIndex = 1)),
-          _menuCard('Jugadores', 'Buscar', Icons.sports_tennis, AppColors.yellow, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JugadoresScreen()))),
-          _menuCard('Ranking', 'Posiciones', Icons.leaderboard_outlined, AppColors.blue, () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RankingScreen()))),
+          _menuCard('Torneos', 'Inscripciones', Icons.emoji_events_outlined, AppColors.blue,
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const _TorneosPlaceholder()))),
+          _menuCard('Jugadores', 'Buscar', Icons.sports_tennis, AppColors.yellow,
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const JugadoresScreen()))),
+          _menuCard('Ranking', 'Posiciones', Icons.leaderboard_outlined, AppColors.blue,
+            () => Navigator.push(context, MaterialPageRoute(builder: (_) => const RankingScreen()))),
           _menuCard('Clubes', 'Canchas y sedes', Icons.location_on_outlined, AppColors.blueBright, () {}),
         ],
       ),
@@ -190,7 +198,11 @@ class _HomeScreenState extends State<HomeScreen> {
           Icon(icon, color: Colors.white.withOpacity(0.4), size: 22),
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
-            decoration: BoxDecoration(color: badgeColor.withOpacity(0.2), borderRadius: BorderRadius.circular(6), border: Border.all(color: badgeColor.withOpacity(0.5))),
+            decoration: BoxDecoration(
+              color: badgeColor.withOpacity(0.2),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: badgeColor.withOpacity(0.5)),
+            ),
             child: Text(badge, style: GoogleFonts.barlowCondensed(fontSize: 10, fontWeight: FontWeight.w700, letterSpacing: 1, color: badgeColor)),
           ),
         ]),
@@ -211,8 +223,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-
-
   Widget _menuCard(String title, String sub, IconData icon, Color color, VoidCallback onTap) =>
     GestureDetector(onTap: onTap, child: Container(
       decoration: BoxDecoration(color: AppColors.white05, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.white10)),
@@ -228,3 +238,31 @@ class _HomeScreenState extends State<HomeScreen> {
     ));
 }
 
+// Placeholder para torneos hasta que esté implementado
+class _TorneosPlaceholder extends StatelessWidget {
+  const _TorneosPlaceholder();
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: AppColors.navy,
+      body: SafeArea(child: Column(children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(8, 16, 20, 0),
+          child: Row(children: [
+            IconButton(
+              onPressed: () => Navigator.pop(context),
+              icon: const Icon(Icons.arrow_back_ios, color: AppColors.white30, size: 20),
+            ),
+            Text('TORNEOS', style: GoogleFonts.bebasNeue(fontSize: 28, letterSpacing: 2, color: Colors.white)),
+          ]),
+        ),
+        Expanded(child: Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
+          const Icon(Icons.emoji_events_outlined, color: AppColors.white30, size: 60),
+          const SizedBox(height: 16),
+          Text('Próximamente', style: GoogleFonts.bebasNeue(fontSize: 28, letterSpacing: 2, color: Colors.white)),
+          Text('Inscripciones y fixture de torneos', style: GoogleFonts.barlowCondensed(fontSize: 14, color: AppColors.white30, letterSpacing: 1)),
+        ]))),
+      ])),
+    );
+  }
+}
