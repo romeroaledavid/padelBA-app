@@ -5,7 +5,13 @@ import '../../theme/app_colors.dart';
 import '../../painters/diagonal_bg_painter.dart';
 
 class CrearTorneoScreen extends StatefulWidget {
-  const CrearTorneoScreen({super.key});
+  final String formatoInicial;
+
+const CrearTorneoScreen({
+  super.key,
+  this.formatoInicial = 'grupos',
+});
+
   @override
   State<CrearTorneoScreen> createState() => _CrearTorneoScreenState();
 }
@@ -18,6 +24,12 @@ class _CrearTorneoScreenState extends State<CrearTorneoScreen> {
   List<int> _cats   = [];
   int _canchas      = 2;
   bool _loading     = false;
+
+@override
+void initState() {
+  super.initState();
+  _formato = widget.formatoInicial;
+}
 
   @override
   void dispose() {
@@ -102,15 +114,32 @@ class _CrearTorneoScreenState extends State<CrearTorneoScreen> {
               child: AbsorbPointer(child: _field('Fecha', _fechaCtrl, icon: Icons.calendar_today_outlined)),
             ),
             const SizedBox(height: 20),
-            _label('FORMATO'),
-            const SizedBox(height: 10),
-            Wrap(spacing: 8, runSpacing: 8, children: [
-              _chip('Grupos', _formato == 'grupos', () => setState(() => _formato = 'grupos')),
-              _chip('Grupos + Eliminación', _formato == 'grupos_elim', () => setState(() => _formato = 'grupos_elim')),
-              _chip('Americano', _formato == 'americano', () => setState(() => _formato = 'americano')),
-              _chip('Eliminación directa', _formato == 'eliminacion', () => setState(() => _formato = 'eliminacion')),
-            ]),
-            const SizedBox(height: 20),
+            _label('FORMATO SELECCIONADO'),
+const SizedBox(height: 10),
+
+Container(
+  padding: const EdgeInsets.symmetric(
+    horizontal: 14,
+    vertical: 10,
+  ),
+  decoration: BoxDecoration(
+    color: AppColors.navy2,
+    borderRadius: BorderRadius.circular(12),
+    border: Border.all(
+      color: AppColors.blueBright,
+    ),
+  ),
+  child: Text(
+    _formato.toUpperCase(),
+    style: GoogleFonts.barlowCondensed(
+      fontSize: 15,
+      fontWeight: FontWeight.w700,
+      color: Colors.white,
+    ),
+  ),
+),
+
+const SizedBox(height: 20),
             _label('CATEGORÍAS HABILITADAS'),
             const SizedBox(height: 4),
             Text('Dejá vacío para todas', style: GoogleFonts.barlow(fontSize: 11, color: AppColors.white30)),
