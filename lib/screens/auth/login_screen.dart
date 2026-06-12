@@ -8,6 +8,7 @@ import '../home/home_screen.dart';
 import '../fiscal/fiscal_login_screen.dart';
 import 'package:padel_ba/screens/torneos/crear_torneo_screen.dart';
 import 'package:padel_ba/screens/fiscal/fiscal_login_screen.dart';
+import '../torneos/seleccionar_formato_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -250,7 +251,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 label: 'Crear Torneo',
                 icon: Icons.emoji_events_outlined,
                 color: AppColors.blueBright,
-                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => CrearTorneoScreen())),
+                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const SeleccionarFormatoScreen())),
               ),
               const SizedBox(height: 8),
               // Acceso fiscal

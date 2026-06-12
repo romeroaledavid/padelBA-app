@@ -4,13 +4,18 @@ import '../../../theme/app_colors.dart';
 import '../../../painters/diagonal_bg_painter.dart';
 
 /// Widgets compartidos por los wizards de creación de torneos.
-/// Cada formato (round robin, eliminatorias, maratón, ranking, americano)
+/// Cada formato (torneo clásico, eliminatorias, maratón, ranking, americano)
 /// define sus propios pasos y usa este scaffold + helpers.
 
 class WizardStep {
   final String title;
   final Widget child;
-  const WizardStep({required this.title, required this.child});
+
+  /// Validación opcional del paso: devuelve un mensaje de error si falta
+  /// completar algo, o null si está todo bien y se puede avanzar.
+  final String? Function()? validate;
+
+  const WizardStep({required this.title, required this.child, this.validate});
 }
 
 class TorneoWizard extends StatefulWidget {
@@ -40,6 +45,16 @@ class _TorneoWizardState extends State<TorneoWizard> {
   bool get _esUltimo => _index == widget.steps.length - 1;
 
   void _siguiente() {
+    final error = widget.steps[_index].validate?.call();
+    if (error != null) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text(error, style: GoogleFonts.barlowCondensed(fontSize: 15)),
+        backgroundColor: AppColors.red,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+      ));
+      return;
+    }
     if (!_esUltimo) setState(() => _index++);
   }
 
@@ -230,6 +245,66 @@ Widget wzDateField(BuildContext context, String label, TextEditingController ctr
       icon: Icons.calendar_today_outlined, readOnly: true, onTap: pick);
 }
 
+/// Campo de rango de fechas: inicio y cierre en el mismo calendario.
+/// Muestra el día de hoy resaltado; ideal para torneos de 3-4 días.
+Widget wzDateRangeField(
+    BuildContext context, String label, TextEditingController ctrl,
+    {Color accent = AppColors.blue, void Function(DateTimeRange)? onPicked}) {
+  Future<void> pick() async {
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
+      context: context,
+      firstDate: now,
+      lastDate: now.add(const Duration(days: 365 * 2)),
+      currentDate: now,
+      initialDateRange: DateTimeRange(
+        start: now.add(const Duration(days: 7)),
+        end: now.add(const Duration(days: 10)),
+      ),
+      saveText: 'LISTO',
+      helpText: 'FECHAS DEL TORNEO',
+      builder: (ctx, child) => Theme(
+        data: ThemeData.dark().copyWith(
+            colorScheme:
+                ColorScheme.dark(primary: accent, surface: AppColors.navy2)),
+        child: child!,
+      ),
+    );
+    if (picked != null) {
+      String f(DateTime d) =>
+          '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+      ctrl.text = '${f(picked.start)} → ${f(picked.end)}';
+      onPicked?.call(picked);
+    }
+  }
+
+  return wzField(label, ctrl,
+      icon: Icons.date_range_outlined, readOnly: true, onTap: pick);
+}
+
+/// Desplegable con estilo de la app (club/sede, etc.).
+Widget wzDropdown({
+  required String label,
+  required String? value,
+  required List<String> options,
+  required void Function(String?) onChanged,
+  IconData? icon,
+}) =>
+    DropdownButtonFormField<String>(
+      value: value,
+      dropdownColor: AppColors.navy2,
+      style: const TextStyle(color: Colors.white),
+      icon: const Icon(Icons.keyboard_arrow_down, color: AppColors.white30),
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: icon != null ? Icon(icon, color: AppColors.white30) : null,
+      ),
+      items: options
+          .map((o) => DropdownMenuItem(value: o, child: Text(o)))
+          .toList(),
+      onChanged: onChanged,
+    );
+
 Widget wzChip(String label, bool active, VoidCallback onTap,
         {Color color = AppColors.blueBright}) =>
     GestureDetector(
@@ -250,7 +325,29 @@ Widget wzChip(String label, bool active, VoidCallback onTap,
       ),
     );
 
-/// Chips de categorías 1a–8a con su color propio. Devuelve la lista ordenada.
+/// Chips de selección múltiple (clubes/sedes, sumas, etc.).
+Widget wzMultiChips(
+  List<String> options,
+  List<String> selected,
+  void Function(VoidCallback) setState, {
+  Color color = AppColors.blueBright,
+}) =>
+    Wrap(
+      spacing: 8,
+      runSpacing: 8,
+      children: options
+          .map((o) => wzChip(
+                o,
+                selected.contains(o),
+                () => setState(() {
+                  selected.contains(o) ? selected.remove(o) : selected.add(o);
+                }),
+                color: color,
+              ))
+          .toList(),
+    );
+
+/// Chips de categorías 1ra–8va con su color propio. Devuelve la lista ordenada.
 Widget wzCategorias(List<int> cats, void Function(VoidCallback) setState) =>
     Wrap(
       spacing: 8,
@@ -273,7 +370,7 @@ Widget wzCategorias(List<int> cats, void Function(VoidCallback) setState) =>
               border:
                   Border.all(color: active ? color : AppColors.white10, width: active ? 2 : 1),
             ),
-            child: Text('${cat}a',
+            child: Text(wzOrdinal(cat),
                 style: GoogleFonts.barlowCondensed(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
@@ -296,7 +393,7 @@ Widget wzCounter({
       IconButton(
         onPressed: value > min ? () => onChanged(value - 1) : null,
         icon: Icon(Icons.remove_circle_outline,
-            color: value > min ? AppColors.white30 : AppColors.white10),
+            color: value > min ? accent : AppColors.white10),
       ),
       Container(
         width: 60,
@@ -357,5 +454,15 @@ Widget wzResumen(Color accent, List<MapEntry<String, String>> items) => Containe
       ),
     );
 
+/// Ordinal de categoría: 1ra, 2da, 3ra, 4ta, 5ta, 6ta, 7ma, 8va.
+String wzOrdinal(int c) => switch (c) {
+      1 => '1ra',
+      2 => '2da',
+      3 => '3ra',
+      7 => '7ma',
+      8 => '8va',
+      _ => '${c}ta', // 4ta, 5ta, 6ta
+    };
+
 String wzCatsTexto(List<int> cats) =>
-    cats.isEmpty ? 'Todas' : cats.map((c) => '${c}a').join(', ');
+    cats.isEmpty ? 'Todas' : cats.map(wzOrdinal).join(', ');
