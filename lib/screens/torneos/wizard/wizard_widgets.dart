@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../theme/app_colors.dart';
 import '../../../painters/diagonal_bg_painter.dart';
+import '../../../widgets/profile_avatar.dart';
 
 /// Widgets compartidos por los wizards de creación de torneos.
 /// Cada formato (torneo clásico, eliminatorias, maratón, ranking, americano)
@@ -466,3 +467,182 @@ String wzOrdinal(int c) => switch (c) {
 
 String wzCatsTexto(List<int> cats) =>
     cats.isEmpty ? 'Todas' : cats.map(wzOrdinal).join(', ');
+
+// ===========================================================================
+// AGREGAR AL FINAL DE lib/screens/torneos/wizard/wizard_widgets.dart
+// REEMPLAZA al bloque anterior que habías pegado (borrá el viejo y pegá
+// este completo): wzClubCanchas ahora acepta min: 0 para "no se usa".
+//
+// Requiere este import arriba del archivo:
+//   import '../../../widgets/profile_avatar.dart';
+// ===========================================================================
+
+/// Chips de categorías 1ra–8va con SELECCIÓN ÚNICA.
+/// Tocar el chip activo lo deselecciona. Si [enabled] es false (porque hay
+/// un torneo suma elegido), los chips se ven apagados y no responden.
+Widget wzCategoriaUnica(
+  int? seleccionada,
+  void Function(int?) onChanged, {
+  bool enabled = true,
+}) =>
+    Opacity(
+      opacity: enabled ? 1 : 0.35,
+      child: IgnorePointer(
+        ignoring: !enabled,
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: List.generate(8, (i) {
+            final cat = i + 1;
+            final color = AppColors.categoryColor(cat);
+            final active = seleccionada == cat;
+            return GestureDetector(
+              onTap: () => onChanged(active ? null : cat),
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 150),
+                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                decoration: BoxDecoration(
+                  color: active ? color.withOpacity(0.2) : AppColors.white05,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(
+                      color: active ? color : AppColors.white10,
+                      width: active ? 2 : 1),
+                ),
+                child: Text(wzOrdinal(cat),
+                    style: GoogleFonts.barlowCondensed(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: active ? color : AppColors.white30)),
+              ),
+            );
+          }),
+        ),
+      ),
+    );
+
+/// Chips de SELECCIÓN ÚNICA genéricos (torneos suma, etc.).
+Widget wzSingleChips(
+  List<String> options,
+  String? selected,
+  void Function(String?) onChanged, {
+  Color color = AppColors.blueBright,
+  bool enabled = true,
+}) =>
+    Opacity(
+      opacity: enabled ? 1 : 0.35,
+      child: IgnorePointer(
+        ignoring: !enabled,
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 8,
+          children: options
+              .map((o) => wzChip(
+                    o,
+                    selected == o,
+                    () => onChanged(selected == o ? null : o),
+                    color: color,
+                  ))
+              .toList(),
+        ),
+      ),
+    );
+
+/// Card de canchas de un club: total que tiene y cuántas se usan.
+/// Con [min] en 0 permite dejar el club sin uso ese día.
+Widget wzClubCanchas({
+  required String club,
+  required int total,
+  required int usar,
+  required void Function(int) onChanged,
+  Color accent = AppColors.blueBright,
+  int min = 0,
+}) =>
+    Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.fromLTRB(14, 10, 4, 10),
+      decoration: BoxDecoration(
+        color: usar > 0 ? AppColors.white05 : Colors.transparent,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+            color: usar > 0 ? AppColors.white10 : AppColors.white05),
+      ),
+      child: Row(children: [
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(club,
+                style: GoogleFonts.barlowCondensed(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: usar > 0 ? Colors.white : AppColors.white30)),
+            const SizedBox(height: 2),
+            Text(
+                usar > 0
+                    ? '$total canchas en el club · se usan $usar'
+                    : 'No se usa este día',
+                style: GoogleFonts.barlow(
+                    fontSize: 11, color: AppColors.white30)),
+          ]),
+        ),
+        IconButton(
+          onPressed: usar > min ? () => onChanged(usar - 1) : null,
+          icon: Icon(Icons.remove_circle_outline,
+              color: usar > min ? accent : AppColors.white10),
+        ),
+        Container(
+          width: 44,
+          height: 38,
+          decoration: BoxDecoration(
+            color: AppColors.white05,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+                color: usar > 0 ? accent.withOpacity(0.5) : AppColors.white10),
+          ),
+          child: Center(
+            child: Text('$usar/$total',
+                style: GoogleFonts.bebasNeue(
+                    fontSize: 15,
+                    color: usar > 0 ? Colors.white : AppColors.white30)),
+          ),
+        ),
+        IconButton(
+          onPressed: usar < total ? () => onChanged(usar + 1) : null,
+          icon: Icon(Icons.add_circle_outline,
+              color: usar < total ? accent : AppColors.white10),
+        ),
+      ]),
+    );
+
+/// Jugador con el mismo estilo del avatar de perfil: aro del color de su
+/// categoría + badge con el número arriba a la derecha, y el nombre con
+/// sus puntos entre paréntesis. Ej: "Paternostro (23p)".
+Widget wzJugadorCat({
+  required String nombre,
+  required int categoria,
+  required int puntos,
+  String? fotoUrl,
+  double radius = 13,
+}) {
+  final iniciales = nombre
+      .trim()
+      .split(RegExp(r'\s+'))
+      .take(2)
+      .map((p) => p.isEmpty ? '' : p[0].toUpperCase())
+      .join();
+  return Row(mainAxisSize: MainAxisSize.min, children: [
+    ProfileAvatar(
+      fotoUrl: fotoUrl,
+      initials: iniciales,
+      categoria: categoria,
+      radius: radius,
+    ),
+    const SizedBox(width: 6),
+    Flexible(
+      child: Text('$nombre (${puntos}p)',
+          overflow: TextOverflow.ellipsis,
+          style: GoogleFonts.barlowCondensed(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+              color: Colors.white)),
+    ),
+  ]);
+}

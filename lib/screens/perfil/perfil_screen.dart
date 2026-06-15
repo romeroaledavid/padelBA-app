@@ -7,7 +7,6 @@ import '../../theme/app_colors.dart';
 import '../../widgets/profile_avatar.dart';
 import '../../widgets/distrito_localidad_selector.dart';
 import '../../widgets/clubes_selector.dart';
-import '../../constants/distritos.dart';
 import '../home/home_screen.dart';
 
 // ===================== PERFIL =====================
@@ -20,17 +19,18 @@ class PerfilScreen extends StatefulWidget {
 }
 
 class _PerfilScreenState extends State<PerfilScreen> {
-  final _nombreCtrl    = TextEditingController();
-  final _apellidoCtrl  = TextEditingController();
-  final _emailCtrl     = TextEditingController();
-  String _distrito       = '';
-  String _localidad      = '';
-  String _ladoCancha     = '';
-  String _manoHabil      = '';
+  final _nombreCtrl   = TextEditingController();
+  final _apellidoCtrl = TextEditingController();
+  final _emailCtrl    = TextEditingController();
+  String _distrito      = '';
+  String _localidad     = '';
+  String _ladoCancha    = '';
+  String _manoHabil     = '';
+  String _genero        = '';          // ← nuevo
   List<String> _selectedClubes = [];
   String? _fotoUrl;
-  bool _loading          = false;
-  bool _uploading        = false;
+  bool _loading    = false;
+  bool _uploading  = false;
 
   @override
   void initState() { super.initState(); _loadData(); }
@@ -38,13 +38,14 @@ class _PerfilScreenState extends State<PerfilScreen> {
   void _loadData() {
     final p = widget.perfil;
     if (p == null) return;
-    _nombreCtrl.text     = p['nombre'] ?? '';
-    _apellidoCtrl.text   = p['apellido'] ?? '';
-    _emailCtrl.text = p['email'] ?? '';
-    _distrito       = p['distrito'] ?? '';
-    _localidad      = p['localidad'] ?? '';
-    _ladoCancha     = p['lado_cancha'] ?? '';
-    _manoHabil      = p['mano_habil'] ?? '';
+    _nombreCtrl.text   = p['nombre'] ?? '';
+    _apellidoCtrl.text = p['apellido'] ?? '';
+    _emailCtrl.text    = p['email'] ?? '';
+    _distrito          = p['distrito'] ?? '';
+    _localidad         = p['localidad'] ?? '';
+    _ladoCancha        = p['lado_cancha'] ?? '';
+    _manoHabil         = p['mano_habil'] ?? '';
+    _genero            = p['genero'] ?? '';   // ← nuevo
     final rawClubes = p['clubes_ids'];
     if (rawClubes != null) {
       _selectedClubes = List<String>.from(rawClubes);
@@ -52,10 +53,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   @override
-  void didUpdateWidget(PerfilScreen old) { super.didUpdateWidget(old); if (widget.perfil != old.perfil) _loadData(); }
+  void didUpdateWidget(PerfilScreen old) {
+    super.didUpdateWidget(old);
+    if (widget.perfil != old.perfil) _loadData();
+  }
 
   @override
-  void dispose() { _nombreCtrl.dispose(); _apellidoCtrl.dispose(); _emailCtrl.dispose(); super.dispose(); }
+  void dispose() {
+    _nombreCtrl.dispose(); _apellidoCtrl.dispose(); _emailCtrl.dispose();
+    super.dispose();
+  }
 
   String _formatFecha(String isoDate) {
     try {
@@ -89,7 +96,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
     setState(() => _uploading = true);
     try {
       final file = File(picked.path);
-      final ext = picked.path.split('.').last;
+      final ext  = picked.path.split('.').last;
       final finalPath = 'avatars/$uid.$ext';
       await Supabase.instance.client.storage.from('avatars').upload(
         finalPath, file, fileOptions: const FileOptions(upsert: true));
@@ -110,7 +117,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
     if (uid == null) return;
     setState(() => _loading = true);
     try {
-      final nombreTrim = _nombreCtrl.text.trim();
+      final nombreTrim   = _nombreCtrl.text.trim();
       final apellidoTrim = _apellidoCtrl.text.trim();
       if (nombreTrim.isEmpty) {
         _toast('Ingresa tu nombre', error: true);
@@ -118,29 +125,18 @@ class _PerfilScreenState extends State<PerfilScreen> {
         return;
       }
       await Supabase.instance.client.from('usuarios').update({
-        'nombre': nombreTrim,
-        'apellido': apellidoTrim,
-        'email': _emailCtrl.text.trim(),
-        'distrito': _distrito.isNotEmpty ? _distrito : null,
-        'localidad': _localidad.isNotEmpty ? _localidad : null,
+        'nombre'     : nombreTrim,
+        'apellido'   : apellidoTrim,
+        'email'      : _emailCtrl.text.trim(),
+        'distrito'   : _distrito.isNotEmpty ? _distrito : null,
+        'localidad'  : _localidad.isNotEmpty ? _localidad : null,
         'lado_cancha': _ladoCancha.isNotEmpty ? _ladoCancha : null,
-        'mano_habil': _manoHabil.isNotEmpty ? _manoHabil : null,
-        'clubes_ids': _selectedClubes.isNotEmpty ? _selectedClubes : null,
+        'mano_habil' : _manoHabil.isNotEmpty ? _manoHabil : null,
+        'genero'     : _genero.isNotEmpty ? _genero : null,   // ← nuevo
+        'clubes_ids' : _selectedClubes.isNotEmpty ? _selectedClubes : null,
       }).eq('id', uid);
-      // Navigate back to home after saving
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Perfil guardado!', style: GoogleFonts.barlowCondensed(fontSize: 15)),
-          backgroundColor: AppColors.green,
-          behavior: SnackBarBehavior.floating,
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          duration: const Duration(seconds: 2),
-        ));
-      }
       widget.onSaved();
-      if (mounted) {
-        _toast('Perfil guardado!');
-      }
+      if (mounted) _toast('Perfil guardado!');
     } catch (e) {
       _toast('Error al guardar: $e', error: true);
     } finally {
@@ -159,15 +155,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final p = widget.perfil;
+    final p        = widget.perfil;
     final nombre   = p?['nombre'] as String? ?? '';
     final apellido = p?['apellido'] as String? ?? '';
     final dni      = p?['dni'] as String? ?? '';
     final fecha    = p?['fecha_nacimiento'] as String? ?? '';
     final edad     = _calcEdad(fecha);
-    final categoria= (p?['categoria'] as int?) ?? 0;
-    final catObs   = p?['categoria_observada'] as int?;
-    final initials = nombre.isNotEmpty ? '${nombre[0]}${apellido.isNotEmpty ? apellido[0] : ''}'.toUpperCase() : 'J';
+    final categoria = (p?['categoria'] as int?) ?? 0;
+    final catObs    = p?['categoria_observada'] as int?;
+    final initials  = nombre.isNotEmpty
+        ? '${nombre[0]}${apellido.isNotEmpty ? apellido[0] : ''}'.toUpperCase() : 'J';
 
     return SafeArea(child: SingleChildScrollView(
       padding: const EdgeInsets.all(24),
@@ -177,11 +174,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
         Text('Tu informacion personal', style: GoogleFonts.barlowCondensed(fontSize: 12, letterSpacing: 3, color: AppColors.white30)),
         const SizedBox(height: 28),
 
-        // Avatar con foto
+        // Avatar
         Center(child: Column(children: [
           Stack(children: [
-            ProfileAvatar(fotoUrl: _fotoUrl ?? p?['foto_url'] as String?, initials: initials, categoria: categoria,
-              categoriaObservada: catObs != null && catObs != categoria ? catObs : null, radius: 50),
+            ProfileAvatar(
+              fotoUrl: _fotoUrl ?? p?['foto_url'] as String?,
+              initials: initials,
+              categoria: categoria,
+              categoriaObservada: catObs != null && catObs != categoria ? catObs : null,
+              radius: 50,
+            ),
             Positioned(bottom: 0, right: 0,
               child: GestureDetector(
                 onTap: _pickFoto,
@@ -192,7 +194,10 @@ class _PerfilScreenState extends State<PerfilScreen> {
                     shape: BoxShape.circle,
                     border: Border.all(color: AppColors.navy, width: 2),
                   ),
-                  child: const Icon(Icons.camera_alt, color: Colors.white, size: 15),
+                  child: _uploading
+                      ? const Padding(padding: EdgeInsets.all(6),
+                          child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                      : const Icon(Icons.camera_alt, color: Colors.white, size: 15),
                 ),
               ),
             ),
@@ -206,7 +211,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         ])),
         const SizedBox(height: 28),
 
-        // DNI y fecha NO editables
+        // Datos fijos
         _sectionTitle('DATOS FIJOS'),
         const SizedBox(height: 4),
         Text('DNI y fecha de nacimiento no pueden modificarse', style: GoogleFonts.barlow(fontSize: 11, color: AppColors.white30)),
@@ -214,17 +219,17 @@ class _PerfilScreenState extends State<PerfilScreen> {
         Row(children: [
           Expanded(child: _infoTile(Icons.badge_outlined, 'DNI', dni)),
           const SizedBox(width: 10),
-          Expanded(child: _infoTile(Icons.cake_outlined, 'Fecha nac.', fecha.isNotEmpty ? fecha : '—')),
+          Expanded(child: _infoTile(Icons.cake_outlined, 'Fecha nac.', fecha.isNotEmpty ? _formatFecha(fecha) : '—')),
         ]),
         const SizedBox(height: 20),
-        // Show distrito/localidad
         if (p?['distrito'] != null || p?['localidad'] != null)
           Padding(
             padding: const EdgeInsets.only(bottom: 12),
             child: _infoTile(Icons.location_on_outlined, 'Ubicación',
               [p?['localidad'], p?['distrito']].where((e) => e != null && e.toString().isNotEmpty).join(', ')),
           ),
-        // Nombre y apellido SÍ editables
+
+        // Datos personales
         _sectionTitle('DATOS PERSONALES'),
         const SizedBox(height: 12),
         Row(children: [
@@ -236,7 +241,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         ]),
         const SizedBox(height: 28),
 
-        // Categoria (solo lectura, la asigna el Fiscal)
+        // Categoría (solo lectura)
         _sectionTitle('CATEGORIA'),
         const SizedBox(height: 4),
         Text('Asignada por el Fiscal', style: GoogleFonts.barlow(fontSize: 11, color: AppColors.white30)),
@@ -260,7 +265,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
               Row(children: [
                 const Icon(Icons.verified_user_outlined, color: AppColors.white30, size: 13),
                 const SizedBox(width: 4),
-                Text('Asignada por: ', style: GoogleFonts.barlowCondensed(fontSize: 12, color: AppColors.white30, letterSpacing: 0.5)),
+                Text('Asignada por el fiscal: ', style: GoogleFonts.barlowCondensed(fontSize: 12, color: AppColors.white30, letterSpacing: 0.5)),
                 Flexible(child: RichText(
                   overflow: TextOverflow.ellipsis,
                   text: TextSpan(
@@ -305,7 +310,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
           ),
         const SizedBox(height: 28),
 
-        // Datos editables
+        // Datos de juego
         _sectionTitle('DATOS DE JUEGO'),
         const SizedBox(height: 12),
         TextField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress,
@@ -319,19 +324,31 @@ class _PerfilScreenState extends State<PerfilScreen> {
           onLocalidadChanged: (v) => setState(() => _localidad = v ?? ''),
         ),
         const SizedBox(height: 16),
-        _chipLabel('Lado de cancha'),
+
+        // ── Género ───────────────────────────────────────────────────────────
+        _chipLabel('Género'),
+        const SizedBox(height: 8),
+        Wrap(spacing: 8, children: [
+          _chip('Masculino', _genero == 'masculino', () => setState(() => _genero = 'masculino')),
+          _chip('Femenino',  _genero == 'femenino',  () => setState(() => _genero = 'femenino')),
+        ]),
+        const SizedBox(height: 16),
+
+        // Posición en cancha
+        _chipLabel('Posición en cancha'),
         const SizedBox(height: 8),
         Wrap(spacing: 8, children: [
           _chip('Drive', _ladoCancha == 'drive', () => setState(() => _ladoCancha = 'drive')),
-          _chip('Reves', _ladoCancha == 'reves', () => setState(() => _ladoCancha = 'reves')),
+          _chip('Revés', _ladoCancha == 'reves', () => setState(() => _ladoCancha = 'reves')),
           _chip('Ambos', _ladoCancha == 'ambos', () => setState(() => _ladoCancha = 'ambos')),
         ]),
         const SizedBox(height: 16),
-        _chipLabel('Mano habil'),
+
+        _chipLabel('Mano hábil'),
         const SizedBox(height: 8),
         Wrap(spacing: 8, children: [
           _chip('Derecha', _manoHabil == 'derecha', () => setState(() => _manoHabil = 'derecha')),
-          _chip('Zurda', _manoHabil == 'zurda', () => setState(() => _manoHabil = 'zurda')),
+          _chip('Izquierda', _manoHabil == 'izquierda', () => setState(() => _manoHabil = 'izquierda')),
         ]),
         const SizedBox(height: 16),
         ClubesSelector(
@@ -340,7 +357,7 @@ class _PerfilScreenState extends State<PerfilScreen> {
         ),
         const SizedBox(height: 28),
 
-        // Estadisticas
+        // Estadísticas
         _sectionTitle('ESTADISTICAS'),
         const SizedBox(height: 12),
         Row(children: [
@@ -406,6 +423,3 @@ class _PerfilScreenState extends State<PerfilScreen> {
     ]),
   ));
 }
-
-
-
